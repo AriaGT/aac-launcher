@@ -16,6 +16,7 @@
     "typecheck": "tsc -p tsconfig.electron.json --noEmit && tsc -p tsconfig.web.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:integration": "npm run build && node scripts/run-integration.cjs",
     "dist": "npm run build && electron-builder --win --x64 --config electron-builder.yml",
     "dist:dir": "npm run build && electron-builder --win --x64 --dir --config electron-builder.yml",
     "clean": "node scripts/clean.mjs",

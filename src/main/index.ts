@@ -186,12 +186,14 @@ function createWindow(runtime: ReturnType<typeof createRuntime>): void {
           .executeJavaScript(
             `(() => {
               const text = document.body.innerText || '';
+              const reported = text.match(/(\\d+) lines/);
               return JSON.stringify({
                 bridge: typeof window.launcher,
                 methods: typeof window.launcher === 'object' ? Object.keys(window.launcher).length : 0,
                 rendered: !text.includes('Loading the launcher') && text.length > 0,
                 chars: text.length,
                 loading: text.includes('Loading the launcher'),
+                consoleLines: reported ? Number(reported[1]) : null,
               });
             })()`,
           )

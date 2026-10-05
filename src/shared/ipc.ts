@@ -49,6 +49,7 @@ export const IPC = {
 /** Events pushed from the main process to the renderer. */
 export const IPC_EVENTS = {
   console: 'event:console',
+  consoleClear: 'event:console-clear',
   status: 'event:status',
   operation: 'event:operation',
   settings: 'event:settings',
@@ -75,16 +76,7 @@ export interface SettingsSnapshot {
   stop: StopOptions;
   issues: ValidationIssue[];
   canPersistSecret: boolean;
-  /**
-   * Derived from the live status at the moment the snapshot was produced, so the
-   * renderer can enable the stop buttons without polling the main process twice.
-   * Derived data only: never a source of truth for whether something is running.
-   */
-  __foremen: Array<{ pid: number; profile: string; alive: boolean }>;
-  __gameRunning: boolean;
-  __anyRunning: boolean;
 }
-
 export interface ActionResult {
   ok: boolean;
   message: string;

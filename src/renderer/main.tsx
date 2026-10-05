@@ -178,11 +178,12 @@ function App() {
       )}
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-y-auto lg:grid-cols-[minmax(360px,420px)_1fr] lg:overflow-hidden">
-        <div className="flex min-h-0 flex-col gap-3 overflow-y-auto">
+        <div className="sidebar-stack flex min-h-0 flex-col gap-3 overflow-y-auto">
           <DirectoryPanel check={settings.directory} busy={busy} onChoose={chooseDir} onValidate={(path) => void bridge.validateDirectory(path).then(() => patch({ agentcraftDir: path }))} />
           <OptionsPanel
             snapshot={settings}
             operation={operation}
+            status={status}
             onPatch={patch}
             onSelectBackend={(backend) => {
               void bridge.selectBackend(backend).then((result) => {

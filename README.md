@@ -126,6 +126,7 @@ into a shell.
 | `npm run dev` | Vite dev server plus Electron, with reload |
 | `npm run typecheck` | `tsc --noEmit` for the electron and web projects |
 | `npm run test` | Vitest unit tests |
+| `npm run test:integration` | build, then run the Electron checks in `tests\integration\` |
 | `npm run build` | compile main/preload with `tsc`, build the renderer with Vite |
 | `npm run dist:dir` | unpacked build in `release\`, for a quick smoke test |
 | `npm run dist` | portable x64 `.exe` |

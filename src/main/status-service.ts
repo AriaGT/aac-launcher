@@ -268,6 +268,11 @@ export class StatusService implements ConsoleSink, StatusSink {
       };
     } finally {
       this.status.checking = false;
+      // Must be cleared here: every early return above (no directory, bad directory,
+      // probe failure) still passes through this block. Leaving the latch set made the
+      // very first probe permanent, so status froze at whatever it saw at startup and
+      // neither polling nor picking a folder afterwards ever updated the UI again.
+      this.probeInFlight = false;
       this.emit('event:status', this.snapshot());
     }
   }
@@ -275,6 +280,7 @@ export class StatusService implements ConsoleSink, StatusSink {
   private applyProbe(parsed: ProbeResult, root: string): void {
     // Keep the deep-probe fields across cheap polls; only the cheap fields change.
     const previous = new Map(this.status.foremen.map((f) => [f.pid, f]));
+    const previousGame = this.status.game;
     const foremen: ForemanStatus[] = (parsed.foremen ?? []).map((entry) => {
       const before = previous.get(entry.pid);
       return {
@@ -320,6 +326,28 @@ export class StatusService implements ConsoleSink, StatusSink {
       lastCheckAt: Date.now(),
       checking: false,
     };
+
+    // Announce live-set changes. Without this the console stayed completely silent
+    // whenever a probe succeeded, so a Foreman that came up or died between polls was
+    // only visible as a silent number changing in the status panel.
+    const nowAlive = foremen.filter((f) => f.alive);
+    const beforeAlive = [...previous.values()].filter((f) => f.alive);
+    const appeared = nowAlive.filter((f) => !beforeAlive.some((b) => b.pid === f.pid));
+    const vanished = beforeAlive.filter((b) => !nowAlive.some((f) => f.pid === b.pid));
+    for (const f of appeared) {
+      this.system(
+        `Foreman detected: profile ${f.profile}, pid ${f.pid}, port ${f.port ?? '?'}, backend ${f.backend}` +
+          (f.ownedByLauncher ? '' : ' (not started by this launcher)'),
+      );
+    }
+    for (const f of vanished) {
+      this.system(`Foreman gone: profile ${f.profile}, pid ${f.pid}`);
+    }
+    if (game && !previousGame) {
+      this.system(`Minecraft detected: pid ${game.gamePid}, devbridge port ${game.devPort ?? '?'}`);
+    } else if (!game && previousGame) {
+      this.system(`Minecraft stopped: pid ${previousGame.gamePid}`);
+    }
   }
 
   /* ------------------------------------------------------------------ */

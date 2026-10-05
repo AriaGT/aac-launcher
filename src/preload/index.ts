@@ -93,7 +93,7 @@ const bridge: LauncherBridge = {
   readApiKeyState: () => ipcRenderer.invoke(IPC.apiKeyRead),
 
   onConsole: (handler) => subscribe(IPC_EVENTS.console, handler),
-  onConsoleClear: (handler) => subscribe(IPC_EVENTS.console, () => handler()),
+  onConsoleClear: (handler) => subscribe(IPC_EVENTS.consoleClear, () => handler()),
   onStatus: (handler) => subscribe(IPC_EVENTS.status, handler),
   onOperation: (handler) => subscribe(IPC_EVENTS.operation, handler),
   onSettings: (handler) => subscribe(IPC_EVENTS.settings, handler),

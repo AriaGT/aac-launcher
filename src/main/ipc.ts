@@ -27,6 +27,7 @@ import { canPersistSecret, decryptSecret, encryptSecret, loadConfig, saveConfig,
 import { resolvePowerShell } from './powershell';
 import { validateAnthropicApiKey } from './anthropic';
 import { createFsProbe, isGitRepo } from './fs-probe';
+import { effectivePort, effectiveProfile } from '../shared/command-builder';
 
 export interface LauncherRuntime {
   config: StoredConfig;
@@ -103,8 +104,6 @@ function apiKeyState(runtime: LauncherRuntime): ApiKeyState {
 function settingsSnapshot(runtime: LauncherRuntime): SettingsSnapshot {
   const check = directoryCheck(runtime);
   const issues = check?.ok ? validateLaunchOptions(runtime.config.options, { isGitRepo }) : [];
-  const status = runtime.status.snapshot();
-  const gameRunning = status.game?.running ?? false;
   return {
     agentcraftDir: runtime.config.agentcraftDir,
     directory: check,
@@ -112,9 +111,6 @@ function settingsSnapshot(runtime: LauncherRuntime): SettingsSnapshot {
     stop: runtime.config.stop,
     issues,
     canPersistSecret: canPersistSecret(),
-    __foremen: status.foremen.map((f) => ({ pid: f.pid, profile: f.profile, alive: f.alive })),
-    __gameRunning: gameRunning,
-    __anyRunning: gameRunning || status.foremen.some((f) => f.alive),
   };
 }
 
@@ -144,6 +140,35 @@ function requireNoOptionErrors(runtime: LauncherRuntime): ActionResult | null {
     return { ok: false, message: first?.message ?? 'Fix the highlighted options first.', summary: null };
   }
   return null;
+}
+
+/**
+ * Catch the port collision before launch.ps1 does, and say something useful.
+ *
+ * launch.ps1 derives an empty -ForemanProfile from the backend, so a default `sim`
+ * start asks for profile `sim` on port 7878. If a Foreman of *another* profile is
+ * already serving 7878, the script dies at its port check and the user only ever sees
+ * "exited with code 1". A live Foreman of the *same* profile is fine: the script
+ * reuses it.
+ */
+function requirePortFree(runtime: LauncherRuntime): ActionResult | null {
+  const options = runtime.config.options;
+  const profile = effectiveProfile(options);
+  const port = effectivePort(options);
+  const clash = runtime.status
+    .snapshot()
+    .foremen.find((f) => f.alive && f.port === port && f.profile !== profile);
+  if (!clash) return null;
+
+  const action = clash.ownedByLauncher ? 'Stop Foreman, then press Start again' : 'Stop that Foreman, then press Start again';
+  return {
+    ok: false,
+    message:
+      `Foreman port ${port} is already used by the live "${clash.profile}" profile (pid ${clash.pid}). ` +
+      `This start would use profile "${profile}" on the same port, and launch.ps1 refuses that. ` +
+      `${action}, or pick a different Foreman port.`,
+    summary: null,
+  };
 }
 
 function parseStartRequest(runtime: LauncherRuntime, raw: unknown): StartRequest | ActionResult {
@@ -295,11 +320,14 @@ export function registerIpc(runtime: LauncherRuntime, getWindow: () => BrowserWi
 
   /* ------------------------------ actions ------------------------------- */
 
-  const guard = (): ActionResult | null =>
+  // Restart and Reset deliberately omit the port check: both stop the old Foreman
+// first, which is exactly what frees the port.
+const guard = (): ActionResult | null =>
     requireCheckout(runtime) ?? requireNoOptionErrors(runtime);
+const startGuard = (): ActionResult | null => guard() ?? requirePortFree(runtime);
 
   handle(IPC.startBackend, async (raw: unknown) => {
-    const blocked = guard();
+    const blocked = startGuard();
     if (blocked) return blocked;
     const request = parseStartRequest(runtime, raw);
     if (isActionResult(request)) return request;

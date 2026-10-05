@@ -36,7 +36,7 @@ export function ConsolePanel({
   };
 
   return (
-    <section className="panel flex min-h-0 flex-col">
+    <section className="panel flex min-h-0 flex-1 flex-col">
       <header className="flex items-center justify-between gap-3 border-b border-edge px-4 py-2">
         <div className="flex items-baseline gap-2">
           <h2 className="text-sm font-semibold text-slate-100">Console</h2>

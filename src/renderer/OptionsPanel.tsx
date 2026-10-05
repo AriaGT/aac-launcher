@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import type { LaunchOptions, OperationState, ValidationIssue } from '../shared/types';
+import type { AgentCraftStatus, LaunchOptions, OperationState, ValidationIssue } from '../shared/types';
 import type { SettingsSnapshot } from '../shared/ipc';
 import { hasErrors, planReset } from '../shared/validation';
 import { RESERVED_PORTS } from '../shared/types';
@@ -62,6 +62,7 @@ function PortField({ label, field, value, placeholder, disabled, issues, onChang
 export function OptionsPanel({
   snapshot,
   operation,
+  status,
   onPatch,
   onSelectBackend,
   onStart,
@@ -74,6 +75,7 @@ export function OptionsPanel({
 }: {
   snapshot: SettingsSnapshot;
   operation: OperationState | null;
+  status: AgentCraftStatus;
   onPatch(patch: Record<string, unknown>): void;
   onSelectBackend(backend: LaunchOptions['backend']): void;
   onStart(): void;
@@ -90,10 +92,13 @@ export function OptionsPanel({
   const blocked = hasErrors(issues) || !snapshot.directory?.ok;
   const busy = operation !== null;
 
-  const foremanRunning = useMemo(
-    () => snapshot.__foremen?.some((f) => f.alive) ?? false,
-    [snapshot.__foremen],
-  );
+  // Read "is something running" from the live status, not from the settings snapshot.
+  // The snapshot is only rebuilt on a settings change, so gating the stop buttons on
+  // it left them disabled while the status panel showed a live Foreman, with no way
+  // to stop it from the UI.
+  const foremanRunning = useMemo(() => status.foremen.some((f) => f.alive), [status.foremen]);
+  const gameRunning = status.game?.running ?? false;
+  const anyRunning = foremanRunning || gameRunning || status.strayGamePid !== null;
 
   const set = <K extends keyof LaunchOptions>(key: K, value: LaunchOptions[K]): void => {
     onPatch({ [key]: value } as Record<string, unknown>);
@@ -101,7 +106,7 @@ export function OptionsPanel({
 
   const resetPlan = planReset(
     options,
-    { foremanRunning, gameRunning: snapshot.__gameRunning ?? false },
+    { foremanRunning, gameRunning },
     options.foremanProfile || options.backend,
   );
 
@@ -227,13 +232,13 @@ export function OptionsPanel({
             <button type="button" className="btn" disabled={blocked || busy} onClick={onReset} title="Stop the Foreman, then launch with -Reset">
               Reset
             </button>
-            <button type="button" className="btn btn-danger" disabled={busy || !snapshot.__anyRunning} onClick={onStopAll}>
+            <button type="button" className="btn btn-danger" disabled={busy || !anyRunning} onClick={onStopAll}>
               Stop all
             </button>
             <button type="button" className="btn btn-danger" disabled={busy || !foremanRunning} onClick={onStopForeman}>
               Stop Foreman
             </button>
-            <button type="button" className="btn btn-danger" disabled={busy || !snapshot.__gameRunning} onClick={onStopGame}>
+            <button type="button" className="btn btn-danger" disabled={busy || !gameRunning} onClick={onStopGame}>
               Stop game
             </button>
             <button type="button" className="btn ml-auto" onClick={onOpenLogs}>

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  IPC_EVENTS,
   parseApiKeyInput,
   parseDirectoryPath,
   parseLaunchOptions,
@@ -7,6 +8,39 @@ import {
   parseStopOptions,
 } from '../src/shared/ipc';
 import { DEFAULT_LAUNCH_OPTIONS } from '../src/shared/types';
+import { StatusService } from '../src/main/status-service';
+
+/**
+ * The main process emits 'event:console' for every line and 'event:console-clear'
+ * for a reset. The preload's onConsoleClear used to subscribe to the *console*
+ * channel, so each arriving line also fired the clear handler and the panel wiped
+ * itself: script output was invisible even though the run had produced plenty.
+ * These assertions fail if the two channels are ever collapsed again.
+ */
+describe('IPC_EVENTS', () => {
+  it('keeps the console line and console clear channels distinct', () => {
+    expect(IPC_EVENTS.console).toBe('event:console');
+    expect(IPC_EVENTS.consoleClear).toBe('event:console-clear');
+    expect(IPC_EVENTS.consoleClear).not.toBe(IPC_EVENTS.console);
+  });
+
+  it('matches the channels the status service actually emits', () => {
+    const seen: string[] = [];
+    const service = new StatusService(
+      {
+        agentcraftDir: () => '',
+        launchOptions: () => DEFAULT_LAUNCH_OPTIONS,
+        apiKey: () => null,
+        isBusy: () => false,
+      },
+      (channel) => seen.push(channel),
+    );
+    service.system('a line arrives');
+    service.clear();
+
+    expect(seen).toEqual([IPC_EVENTS.console, IPC_EVENTS.consoleClear]);
+  });
+});
 
 describe('parseLaunchOptions', () => {
   it('accepts an empty object and fills the documented defaults', () => {

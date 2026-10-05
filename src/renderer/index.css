@@ -51,6 +51,16 @@
     border-radius: 0.75rem;
   }
 
+  /*
+   * A scrolling column of panels. Flex items default to flex-shrink: 1, so once the
+   * panels are taller than the column each one gets squeezed below its own content
+   * height and, because .panel does not clip, the contents spill over the panel
+   * below. Keeping the items at their natural height lets the column scroll instead.
+   */
+  .sidebar-stack > * {
+    flex: none;
+  }
+
   .field-label {
     display: block;
     font-size: 11px;
