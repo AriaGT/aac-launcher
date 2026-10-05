@@ -95,6 +95,20 @@ app.whenReady().then(async () => {
     JSON.stringify((after?.foremen ?? []).map((f) => `${f.profile}:${f.pid}:${f.port}`)),
   );
 
+  // The deep probe shells out to foremancli, so give it time to report which
+  // models are driving the live Foreman.
+  let live = null;
+  for (let i = 0; i < 12 && !live; i += 1) {
+    await wait(3000);
+    const s = await lastStatus();
+    live = (s?.foremen ?? []).find((f) => f.alive && f.model) ?? null;
+  }
+  check(
+    'status reports which models the live Foreman is driving',
+    Boolean(live?.model) && /opus|sonnet|haiku/i.test(live.model),
+    live ? `profile=${live.profile} models=${JSON.stringify(live.model)} auth=${live.auth}` : 'no model reported',
+  );
+
   const lines = await allConsole();
   check(
     'console receives lines (console channel fixed)',
