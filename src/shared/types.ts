@@ -164,6 +164,12 @@ export interface ForemanStatus {
   ownedByLauncher: boolean;
   auth: AuthState | null;
   authMessage: string | null;
+  /** Which models the Foreman is driving, e.g. "Claude (lead opus, workers sonnet)". */
+  model: string | null;
+  /** The signed-in account, e.g. "… · Claude Pro". */
+  account: string | null;
+  /** Session spend reported by the Foreman, in USD. */
+  costUsd: number | null;
   agents: number | null;
   activeAgents: number | null;
   tasks: number | null;

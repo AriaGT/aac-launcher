@@ -30,7 +30,13 @@ function ForemanCard({ foreman }: { foreman: ForemanStatus }) {
         <Row label="reachable" value={foreman.portOpen ? 'yes' : 'no'} />
         <Row label="process" value={foreman.alive ? 'alive' : 'gone'} />
         <Row label="stoppable" value={foreman.ownedByLauncher ? 'yes (run file)' : 'no (not ours)'} />
-        {foreman.authMessage && <Row label="auth detail" value={foreman.authMessage} />}
+        <Row label="models" value={foreman.model ?? '—'} />
+        <Row label="account" value={foreman.account ?? '—'} />
+        <Row
+          label="session cost"
+          value={foreman.costUsd === null ? '—' : `$${foreman.costUsd.toFixed(3)}`}
+          mono
+        />
         <Row label="agents" value={foreman.agents ?? '—'} mono />
         <Row label="active" value={foreman.activeAgents ?? '—'} mono />
         <Row label="tasks" value={foreman.tasks ?? '—'} mono />

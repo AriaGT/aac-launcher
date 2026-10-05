@@ -295,6 +295,9 @@ export class StatusService implements ConsoleSink, StatusSink {
         ownedByLauncher: entry.owned,
         auth: before?.auth ?? null,
         authMessage: before?.authMessage ?? null,
+        model: before?.model ?? null,
+        account: before?.account ?? null,
+        costUsd: before?.costUsd ?? null,
         agents: before?.agents ?? null,
         activeAgents: before?.activeAgents ?? null,
         tasks: before?.tasks ?? null,
@@ -392,6 +395,9 @@ export class StatusService implements ConsoleSink, StatusSink {
           const authenticated = parsed.auth?.authenticated;
           target.auth = authenticated === true ? 'ok' : authenticated === false ? 'failed' : 'unknown';
           target.authMessage = parsed.auth?.detail ?? parsed.auth?.authLabel ?? null;
+          target.model = parsed.model;
+          target.account = parsed.account;
+          target.costUsd = parsed.costUsd;
           target.agents = parsed.counts?.agents ?? target.agents;
           target.activeAgents = parsed.counts?.activeAgents ?? target.activeAgents;
           target.tasks = parsed.counts?.tasks ?? target.tasks;
@@ -467,6 +473,12 @@ interface ParsedForemanStatus {
     openDecisions: number | null;
     showcase: boolean | null;
   } | null;
+  /** `foreman.message`, e.g. "Claude (lead opus, workers sonnet)". */
+  model: string | null;
+  /** `foreman.account`, e.g. "… · Claude Pro". */
+  account: string | null;
+  /** `foreman.costUsd`, the session spend the Foreman reports. */
+  costUsd: number | null;
 }
 
 function num(value: unknown): number | null {
@@ -488,9 +500,24 @@ export function parseForemanStatus(stdout: string): ParsedForemanStatus | null {
 
   const source = ((parsed.summary as Record<string, unknown>) ?? parsed) as Record<string, unknown>;
 
+  // `foremancli.mjs status --json` nests the identity block under `foreman` and reports
+  // auth as a plain string ("ok"), not as an object. Reading auth off the root left it
+  // permanently null, so the status panel showed "?" for auth and never showed which
+  // models the Foreman is driving.
+  const foreman = (source.foreman as Record<string, unknown> | undefined) ?? undefined;
+
+  const authRaw = source.auth as Record<string, unknown> | string | null | undefined;
+  const authOk = (value: string) => (value === 'ok' ? true : value === 'failed' ? false : null);
+
   let auth: ParsedForemanStatus['auth'] = null;
-  const authRaw = source.auth as Record<string, unknown> | null | undefined;
-  if (authRaw && typeof authRaw === 'object') {
+  if ('authenticated' in source) {
+    // Legacy flat shape: an explicit boolean plus a label such as "api-key".
+    auth = {
+      authenticated: typeof source.authenticated === 'boolean' ? source.authenticated : null,
+      authLabel: typeof authRaw === 'string' ? authRaw : str(authRaw),
+      detail: str(source.detail) === null ? null : redact(source.detail as string),
+    };
+  } else if (authRaw && typeof authRaw === 'object') {
     auth = {
       authenticated: typeof authRaw.authenticated === 'boolean' ? authRaw.authenticated : null,
       authLabel: str(authRaw.label),
@@ -499,11 +526,24 @@ export function parseForemanStatus(stdout: string): ParsedForemanStatus | null {
         return detail === null ? null : redact(detail);
       })(),
     };
-  } else if ('authenticated' in source) {
+  } else if (typeof authRaw === 'string') {
+    // Current foremancli shape: `foreman.auth` is the string "ok"/"failed".
     auth = {
-      authenticated: typeof source.authenticated === 'boolean' ? source.authenticated : null,
-      authLabel: str(source.auth),
-      detail: str(source.detail) === null ? null : redact(source.detail as string),
+      authenticated: authOk(authRaw),
+      authLabel: authRaw,
+      detail: (() => {
+        const detail = str(foreman?.message);
+        return detail === null ? null : redact(detail);
+      })(),
+    };
+  } else if (foreman && typeof foreman.auth === 'string') {
+    auth = {
+      authenticated: authOk(foreman.auth),
+      authLabel: foreman.auth,
+      detail: (() => {
+        const detail = str(foreman.message);
+        return detail === null ? null : redact(detail);
+      })(),
     };
   }
 
@@ -512,6 +552,12 @@ export function parseForemanStatus(stdout: string): ParsedForemanStatus | null {
   const hasCounts = Object.keys(countsSource).some((key) =>
     ['agents', 'activeAgents', 'tasks', 'openDecisions', 'showcase'].includes(key),
   );
+  // `openDecisions` is a list of pending items, not a number.
+  const decisionCount = (() => {
+    const raw = countsSource.openDecisions;
+    if (Array.isArray(raw)) return raw.length;
+    return num(raw);
+  })();
 
   return {
     auth,
@@ -520,10 +566,19 @@ export function parseForemanStatus(stdout: string): ParsedForemanStatus | null {
           agents: num(countsSource.agents),
           activeAgents: num(countsSource.activeAgents),
           tasks: num(countsSource.tasks),
-          openDecisions: num(countsSource.openDecisions),
+          openDecisions: decisionCount,
           showcase: typeof countsSource.showcase === 'boolean' ? countsSource.showcase : null,
         }
       : null,
+    model: (() => {
+      const message = str(foreman?.message);
+      return message === null ? null : redact(message);
+    })(),
+    account: (() => {
+      const account = str(foreman?.account);
+      return account === null ? null : redact(account);
+    })(),
+    costUsd: num(foreman?.costUsd),
   };
 }
 

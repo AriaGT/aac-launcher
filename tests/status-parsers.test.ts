@@ -65,6 +65,59 @@ describe('parseForemanStatus', () => {
     expect(parsed?.auth?.detail).toContain('failed with');
     expect(parsed?.auth?.detail).not.toContain(key);
   });
+
+  // Captured verbatim from `node tools/foremancli.mjs status --json --port 7878`
+  // against a live claude Foreman on this machine.
+  const LIVE_STATUS = JSON.stringify({
+    ok: true,
+    url: 'ws://127.0.0.1:7878',
+    foreman: {
+      version: '0.1.0',
+      backend: 'claude',
+      auth: 'ok',
+      userName: 'Aless',
+      message: 'Claude (lead opus, workers sonnet)',
+      account: "ariagt191000@gmail.com's Organization · Claude Pro",
+      costUsd: 3.682,
+    },
+    agents: 6,
+    activeAgents: 4,
+    tasks: 2,
+    tasksByStatus: { done: 1, doing: 1 },
+    openDecisions: [{ id: 'd6', kind: 'permission', agentId: 'juniper' }],
+    repos: [{ id: 'concuobackend', path: 'C:\\x', branch: 'session', worktrees: 0 }],
+  });
+
+  it('reads the real foremancli shape: auth is a string under "foreman"', () => {
+    const parsed = parseForemanStatus(LIVE_STATUS);
+    expect(parsed?.auth?.authenticated).toBe(true);
+    expect(parsed?.auth?.authLabel).toBe('ok');
+    expect(parsed?.counts?.agents).toBe(6);
+    expect(parsed?.counts?.activeAgents).toBe(4);
+    expect(parsed?.counts?.tasks).toBe(2);
+  });
+
+  it('surfaces which models the Foreman is driving', () => {
+    const parsed = parseForemanStatus(LIVE_STATUS);
+    expect(parsed?.model).toBe('Claude (lead opus, workers sonnet)');
+    expect(parsed?.account).toBe("ariagt191000@gmail.com's Organization · Claude Pro");
+    expect(parsed?.costUsd).toBe(3.682);
+  });
+
+  it('counts openDecisions when the foreman reports them as a list', () => {
+    const parsed = parseForemanStatus(LIVE_STATUS);
+    expect(parsed?.counts?.openDecisions).toBe(1);
+  });
+
+  it('redacts a secret that leaks into the model line', () => {
+    const key = 'sk-ant-api03-' + 'S'.repeat(50);
+    const parsed = parseForemanStatus(
+      JSON.stringify({ foreman: { auth: 'failed', message: `boom ${key}` } }),
+    );
+    expect(parsed?.auth?.authenticated).toBe(false);
+    expect(parsed?.model).toContain('boom');
+    expect(parsed?.model).not.toContain(key);
+  });
 });
 
 describe('parseGameState', () => {
