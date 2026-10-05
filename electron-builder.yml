@@ -1,0 +1,46 @@
+appId: dev.agentcraft.launcher
+productName: AgentCraft Launcher
+copyright: Copyright © AgentCraft Launcher contributors
+
+directories:
+  output: release
+  buildResources: build
+
+# Only the compiled output ships. Sources, configs and the AgentCraft checkout never
+# end up inside the packaged app.
+files:
+  - out/**/*
+  - package.json
+  - '!**/*.map'
+  - '!**/*.ts'
+
+# probe.ps1 has to sit next to the app's resources so main/status-service.ts can find it
+# via process.resourcesPath; everything else about AgentCraft lives in the user's checkout.
+extraResources:
+  - from: resources/probe.ps1
+    to: probe.ps1
+
+asar: true
+
+win:
+  target:
+    - target: portable
+      arch:
+        - x64
+  executableName: AgentCraftLauncher
+  # The portable target must not depend on a target that cannot be built here.
+  icon: build/icon.ico
+  artifactName: AgentCraftLauncher-${version}-portable.${ext}
+
+portable:
+  artifactName: AgentCraftLauncher-${version}-portable.${ext}
+  # Unpack into a temp folder at run time; keeps a single .exe to copy around.
+  requestExecutionLevel: user
+
+compression: normal
+removePackageScripts: true
+npmRebuild: false
+buildDependenciesFromSource: false
+
+electronDownload:
+  cache: .electron-cache

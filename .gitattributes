@@ -1,0 +1,9 @@
+# Normalise text files in the repository to LF, and check out as the platform expects.
+* text=auto eol=lf
+
+# PowerShell scripts must stay LF-only or Windows PowerShell 5.1 misreads the shebang
+# region; resources/probe.ps1 is invoked with -File, so keep it strictly LF.
+*.ps1 text eol=lf
+
+# These are generated and must never be normalised or merged by hand.
+package-lock.json -diff

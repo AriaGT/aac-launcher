@@ -1,0 +1,47 @@
+{
+  "name": "agentcraft-launcher",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AgentCraft Launcher - a small Windows desktop frontend for the AgentCraft tools/launch.ps1 and tools/stop.ps1 scripts.",
+  "license": "MIT",
+  "author": "AgentCraft Launcher contributors",
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "npm run build:electron && concurrently -k -n vite,electron -c cyan,magenta \"vite\" \"wait-on tcp:5273 && cross-env ACL_DEV_SERVER=http://127.0.0.1:5273 electron .\"",
+    "dev:renderer": "vite",
+    "build:electron": "tsc -p tsconfig.electron.json && npm run build:preload",
+    "build:preload": "vite build --config vite.preload.config.mts",
+    "build:renderer": "vite build",
+    "build": "npm run build:electron && npm run build:renderer",
+    "typecheck": "tsc -p tsconfig.electron.json --noEmit && tsc -p tsconfig.web.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dist": "npm run build && electron-builder --win --x64 --config electron-builder.yml",
+    "dist:dir": "npm run build && electron-builder --win --x64 --dir --config electron-builder.yml",
+    "clean": "node scripts/clean.mjs",
+    "icon": "node scripts/make-icon.mjs"
+  },
+  "dependencies": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "@testing-library/dom": "10.4.2",
+    "@testing-library/react": "16.3.3",
+    "@types/node": "26.6.4",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "concurrently": "9.2.1",
+    "cross-env": "10.1.0",
+    "electron": "44.5.1",
+    "electron-builder": "26.15.3",
+    "jsdom": "30.1.2",
+    "tailwindcss": "4.3.3",
+    "typescript": "6.0.3",
+    "vite": "8.3.2",
+    "vitest": "5.0.3",
+    "wait-on": "9.0.1"
+  }
+}

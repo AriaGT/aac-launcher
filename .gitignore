@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+
+# Build output
+out/
+dist/
+release/
+.electron-cache/
+
+# Generated icon artifacts (regenerate with: npm run icon)
+build/icon.ico
+resources/icon.ico
+
+# Logs and local scratch
+*.log
+npm-debug.log*
+.vite/
+tsconfig.tsbuildinfo
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Never commit a credential. The launcher stores an encrypted key under the Windows
+# user profile via Electron safeStorage; nothing belonging to that belongs in git.
+*.env
+*.env.*
+.env
+apikey*.json
+*.key
