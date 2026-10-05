@@ -7,7 +7,7 @@
   "author": "AgentCraft Launcher contributors",
   "main": "out/main/index.js",
   "scripts": {
-    "dev": "npm run build:electron && concurrently -k -n vite,electron -c cyan,magenta \"vite\" \"wait-on tcp:5273 && cross-env ACL_DEV_SERVER=http://127.0.0.1:5273 electron .\"",
+    "dev": "npm run build:electron && concurrently -k -n vite,electron -c cyan,magenta \"vite\" \"wait-on tcp:127.0.0.1:5273 && cross-env LAUNCHER_DEV_SERVER=http://127.0.0.1:5273 electron .\"",
     "dev:renderer": "vite",
     "build:electron": "tsc -p tsconfig.electron.json && npm run build:preload",
     "build:preload": "vite build --config vite.preload.config.mts",

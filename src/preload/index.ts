@@ -56,7 +56,12 @@ export interface LauncherBridge {
 }
 
 function request(options?: LaunchOptions): StartRequest {
-  return { options: (options ?? {}) as LaunchOptions, backend: 'sim' as Backend };
+  const resolved = options ?? ({} as Partial<LaunchOptions>);
+  // `backend` is carried both inside options and as a top-level hint. Derive the hint
+  // from the same value the renderer chose instead of a constant, otherwise a Claude
+  // start would silently be validated and launched as sim.
+  const backend: Backend = resolved.showcase ? 'sim' : resolved.backend === 'claude' ? 'claude' : 'sim';
+  return { options: resolved as LaunchOptions, backend };
 }
 
 const bridge: LauncherBridge = {

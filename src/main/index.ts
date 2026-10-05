@@ -14,8 +14,14 @@ import { createRuntime, registerIpc } from './ipc';
 import { probeScriptPath } from './status-service';
 
 const RENDERER_ORIGIN = 'app://agentcraft-launcher';
-/** `npm run dev` sets NODE_ENV=development and starts Vite before Electron. */
-const isDev = process.env.NODE_ENV === 'development';
+/**
+ * Set only by `npm run dev`. Deriving `isDev` from this single variable means we can
+ * never point the renderer at the Vite dev server while still serving the built
+ * bundle (or the reverse), which previously happened because two different env
+ * var names were read on the two sides.
+ */
+const DEV_SERVER = process.env.LAUNCHER_DEV_SERVER ?? '';
+const isDev = DEV_SERVER.length > 0;
 
 /* -------------------------------------------------------------------------- */
 /* Protocol                                                                   */
@@ -34,11 +40,19 @@ function getWindow(): BrowserWindow | null {
   return mainWindow && !mainWindow.isDestroyed() ? mainWindow : null;
 }
 
+/**
+ * Exactly one origin is trusted: the built bundle's `app://` origin, or the Vite dev
+ * server in dev. Kept in one place so navigation checks cannot drift from the loader.
+ */
+function isTrustedRendererUrl(url: string): boolean {
+  if (url.startsWith(RENDERER_ORIGIN)) return true;
+  return isDev && DEV_SERVER.length > 0 && url.startsWith(DEV_SERVER);
+}
+
 function serveRenderer(): void {
   // In dev the renderer is the Vite dev server; when packaged it is the built bundle.
   if (isDev) {
-    const devServer = process.env.VITE_DEV_SERVER_URL ?? 'http://localhost:5273';
-    void mainWindow?.loadURL(devServer);
+    void mainWindow?.loadURL(DEV_SERVER);
     return;
   }
 
@@ -128,7 +142,7 @@ function createWindow(runtime: ReturnType<typeof createRuntime>): void {
 
   // No in-app navigation and no popups: external links go to the system browser.
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    if (url.startsWith(RENDERER_ORIGIN) || url.startsWith('http://localhost:5273')) return;
+    if (isTrustedRendererUrl(url)) return;
     event.preventDefault();
     void shell.openExternal(url);
   });
